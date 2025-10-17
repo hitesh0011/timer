@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HACK 'N' CLASH</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<h1>HACK 'N' CLASH</h1>
+<h2>National Level Coding Contest 2025</h2>
+
+<div id="timer">00:00:00</div>
+<div class="buttons">
+    <button id="startBtn">Start</button>
+    <button id="pauseBtn">Pause</button>
+    <button id="resetBtn">Reset</button>
+</div>
+
+<script>
+    let countdown;
+    const totalTime = 1 * 60 * 60 + 30 * 60 + 0; // 1h 30m
+    const timerDisplay = document.getElementById('timer');
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const resetBtn = document.getElementById('resetBtn');
+
+    function updateDisplay(seconds) {
+        let hrs = Math.floor(seconds / 3600);
+        let mins = Math.floor((seconds % 3600) / 60);
+        let secs = seconds % 60;
+
+        hrs = hrs < 10 ? "0" + hrs : hrs;
+        mins = mins < 10 ? "0" + mins : mins;
+        secs = secs < 10 ? "0" + secs : secs;
+
+        timerDisplay.textContent = `${hrs}:${mins}:${secs}`;
+    }
+
+    function getTimeLeft() {
+        const endTime = localStorage.getItem("endTime");
+        if (!endTime) return totalTime;
+        const diff = Math.floor((new Date(endTime) - new Date()) / 1000);
+        return diff > 0 ? diff : 0;
+    }
+
+    function startTimer() {
+        const storedEndTime = localStorage.getItem("endTime");
+        if (!storedEndTime) {
+            const endTime = new Date(new Date().getTime() + totalTime * 1000);
+            localStorage.setItem("endTime", endTime);
+        }
+
+        clearInterval(countdown);
+        countdown = setInterval(() => {
+            let timeLeft = getTimeLeft();
+
+            if (timeLeft <= 0) {
+                clearInterval(countdown);
+                localStorage.removeItem("endTime");
+                timerDisplay.textContent = "🏁 Contest Over!";
+                timerDisplay.style.color = "red";
+                timerDisplay.style.borderColor = "red";
+                timerDisplay.style.boxShadow = "0 0 30px red";
+                return;
+            }
+
+            updateDisplay(timeLeft);
+        }, 1000);
+    }
+
+    function pauseTimer() {
+        clearInterval(countdown);
+        const timeLeft = getTimeLeft();
+        localStorage.setItem("pausedTime", timeLeft);
+        localStorage.removeItem("endTime");
+    }
+
+    function resetTimer() {
+        clearInterval(countdown);
+        localStorage.removeItem("endTime");
+        localStorage.removeItem("pausedTime");
+        updateDisplay(totalTime);
+        timerDisplay.style.color = "#00ffff";
+        timerDisplay.style.borderColor = "#00ffff";
+        timerDisplay.style.boxShadow = "0 0 40px rgba(0, 255, 255, 0.6)";
+    }
+
+    startBtn.addEventListener('click', () => {
+        const pausedTime = localStorage.getItem("pausedTime");
+        if (pausedTime) {
+            const endTime = new Date(new Date().getTime() + pausedTime * 1000);
+            localStorage.setItem("endTime", endTime);
+            localStorage.removeItem("pausedTime");
+        }
+        startTimer();
+    });
+
+    pauseBtn.addEventListener('click', pauseTimer);
+    resetBtn.addEventListener('click', resetTimer);
+
+    // Resume if already running
+    window.onload = () => {
+        const endTime = localStorage.getItem("endTime");
+        const pausedTime = localStorage.getItem("pausedTime");
+        if (endTime) startTimer();
+        else if (pausedTime) updateDisplay(pausedTime);
+        else updateDisplay(totalTime);
+    };
+</script>
+
+</body>
+</html>

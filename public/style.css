@@ -1,0 +1,75 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Poppins', sans-serif;
+    text-align: center;
+    color: white;
+
+    /* Background: coding contest vibe */
+    background: 
+        linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.85)),
+        url('https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=1470&q=80');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+h1 {
+    font-size: 5em;
+    font-weight: 900;
+    letter-spacing: 5px;
+    background: linear-gradient(90deg, #00ffff, #00ff88, #00ffff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 25px rgba(0, 255, 255, 0.7);
+    animation: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+    from { text-shadow: 0 0 20px #00ffff, 0 0 40px #00ffff; }
+    to { text-shadow: 0 0 40px #00ff88, 0 0 80px #00ff88; }
+}
+
+h2 {
+    font-size: 1.8em;
+    margin-top: 10px;
+    color: #00ffff;
+    text-shadow: 0 0 10px #00ffff;
+}
+
+#timer {
+    font-size: 70px;
+    font-weight: bold;
+    margin: 40px 0 20px;
+    padding: 20px 60px;
+    border-radius: 25px;
+    border: 2px solid #00ffff;
+    background-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 40px rgba(0, 255, 255, 0.6);
+    color: #00ffff;
+}
+
+button {
+    background-color: #00ffff;
+    border: none;
+    padding: 15px 50px;
+    border-radius: 12px;
+    font-size: 22px;
+    font-weight: bold;
+    color: #000;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.6);
+}
+
+button:hover {
+    background-color: #00cccc;
+    transform: scale(1.05);
+    box-shadow: 0 0 40px rgba(0, 255, 255, 1);
+}
