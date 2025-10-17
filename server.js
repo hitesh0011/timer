@@ -1,108 +1,117 @@
+// server.js
 import express from "express";
 import mongoose from "mongoose";
-import Timer from "./models/Timer.js";
+import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
-import dotenv from "dotenv";
+
 dotenv.config();
 
 const app = express();
-app.use(express.json());
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+app.use(express.json());
+
+// Serve frontend
 app.use(express.static(path.join(__dirname, "public")));
 
 const PORT = process.env.PORT || 3000;
-const MONGO_URI = process.env.MONGO;
+const MONGO_URI = process.env.MONGO_URI;
+const TOTAL_DURATION = Number(process.env.TOTAL_DURATION || 5400); // default 1h30m
+
+// MongoDB Timer Schema
+const timerSchema = new mongoose.Schema({
+  totalDuration: { type: Number, default: TOTAL_DURATION },
+  startTime: { type: Date, default: null },
+  paused: { type: Boolean, default: true },
+  pausedRemaining: { type: Number, default: TOTAL_DURATION },
+});
+
+const Timer = mongoose.model("Timer", timerSchema);
 
 // Connect to MongoDB
-mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => console.log("✅ MongoDB Connected"))
-    .catch(err => console.log(err));
+mongoose
+  .connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log("✅ MongoDB Connected"))
+  .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-// ======= Initialize Timer if not exists =======
+// Initialize timer if not exists
 async function initTimer() {
-    let timer = await Timer.findOne();
-    if (!timer) {
-        const startTime = new Date(); // start now
-        timer = new Timer({
-            startTime,
-            duration: 1 * 60 * 60 + 30 * 60, // 1h30m
-            paused: false
-        });
-        await timer.save();
-        console.log("✅ Timer initialized in DB");
-    }
+  let timer = await Timer.findOne();
+  if (!timer) {
+    timer = new Timer();
+    await timer.save();
+  }
 }
 initTimer();
 
-// ======= API Endpoints =======
+// Helper: calculate remaining time
+function getRemainingTime(timer) {
+  if (timer.paused) return timer.pausedRemaining ?? timer.totalDuration;
+  const elapsed = Math.floor((Date.now() - timer.startTime.getTime()) / 1000);
+  const remaining = timer.totalDuration - elapsed;
+  return remaining > 0 ? remaining : 0;
+}
 
-// Get remaining time
+// API Endpoints
+
+// GET remaining time
 app.get("/api/time", async (req, res) => {
-    const timer = await Timer.findOne();
-    if (!timer) return res.status(404).json({ error: "Timer not found" });
-
-    let now = new Date();
-    let elapsed = Math.floor((now - timer.startTime) / 1000);
-
-    if (timer.paused && timer.pausedAt) {
-        elapsed = Math.floor((timer.pausedAt - timer.startTime) / 1000);
-    }
-
-    const remaining = Math.max(timer.duration - elapsed, 0);
-    const isOver = remaining <= 0;
-
-    res.json({
-        remaining,
-        paused: timer.paused,
-        isOver
-    });
+  const timer = await Timer.findOne();
+  const remaining = getRemainingTime(timer);
+  res.json({
+    remaining,
+    paused: timer.paused,
+    isOver: remaining <= 0,
+  });
 });
 
-// Start or Resume
+// POST start
 app.post("/api/start", async (req, res) => {
-    const timer = await Timer.findOne();
-    if (!timer) return res.status(404).json({ error: "Timer not found" });
+  const timer = await Timer.findOne();
+  const remaining = getRemainingTime(timer);
 
-    if (timer.paused) {
-        // Adjust startTime based on paused duration
-        const pausedDuration = Math.floor((new Date() - timer.pausedAt) / 1000);
-        timer.startTime = new Date(timer.startTime.getTime() + pausedDuration * 1000);
-        timer.paused = false;
-        timer.pausedAt = null;
-        await timer.save();
-    }
-
-    res.json({ message: "Timer started/resumed" });
-});
-
-// Pause
-app.post("/api/pause", async (req, res) => {
-    const timer = await Timer.findOne();
-    if (!timer) return res.status(404).json({ error: "Timer not found" });
-
-    if (!timer.paused) {
-        timer.paused = true;
-        timer.pausedAt = new Date();
-        await timer.save();
-    }
-
-    res.json({ message: "Timer paused" });
-});
-
-// Reset
-app.post("/api/reset", async (req, res) => {
-    const timer = await Timer.findOne();
-    if (!timer) return res.status(404).json({ error: "Timer not found" });
-
+  if (timer.paused) {
+    timer.startTime = new Date(Date.now() - (timer.totalDuration - remaining) * 1000);
+    timer.paused = false;
+    timer.pausedRemaining = null;
+    await timer.save();
+  } else if (!timer.startTime) {
     timer.startTime = new Date();
     timer.paused = false;
-    timer.pausedAt = null;
+    timer.pausedRemaining = null;
     await timer.save();
+  }
 
-    res.json({ message: "Timer reset" });
+  res.json({ success: true });
+});
+
+// POST pause
+app.post("/api/pause", async (req, res) => {
+  const timer = await Timer.findOne();
+  if (!timer.paused && timer.startTime) {
+    timer.pausedRemaining = getRemainingTime(timer);
+    timer.startTime = null;
+    timer.paused = true;
+    await timer.save();
+  }
+  res.json({ success: true });
+});
+
+// POST reset
+app.post("/api/reset", async (req, res) => {
+  const timer = await Timer.findOne();
+  timer.startTime = null;
+  timer.paused = true;
+  timer.pausedRemaining = timer.totalDuration;
+  await timer.save();
+  res.json({ success: true });
+});
+
+// Fallback for frontend SPA (exclude /api routes)
+app.get(/^(?!\/api).*/, (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 // Start server
